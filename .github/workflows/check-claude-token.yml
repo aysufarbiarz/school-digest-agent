@@ -1,0 +1,29 @@
+name: Check Claude token
+
+# A quick check that the CLAUDE_CODE_OAUTH_TOKEN secret works.
+# It touches no email or personal data, so its full output is safe to show.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/check-claude-token.yml
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          allowed_bots: "claude[bot],github-actions[bot]"
+          show_full_output: "true"
+          prompt: "Reply with the single word OK."
+          claude_args: |
+            --model sonnet
+            --max-turns 1
