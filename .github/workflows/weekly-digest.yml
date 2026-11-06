@@ -47,13 +47,23 @@ jobs:
       - name: Gather school email
         run: python -m digest.gather
 
+      # Tokens copied from a terminal often pick up line breaks; remove them.
+      # The cleaned value is masked so it never appears in the log.
+      - name: Prepare Claude token
+        env:
+          RAW_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          token=$(printf '%s' "$RAW_TOKEN" | tr -d '[:space:]')
+          echo "::add-mask::$token"
+          echo "CLAUDE_TOKEN_CLEAN=$token" >> "$GITHUB_ENV"
+
       # 2. Claude reads work/ and writes work/extracted.json.
       #    Uses your Claude subscription. It can only read and write files: no shell, no web.
       #    Its conversation is not printed to the (public) log.
       - name: Extract events with Claude
         uses: anthropics/claude-code-action@v1
         with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_code_oauth_token: ${{ env.CLAUDE_TOKEN_CLEAN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           allowed_bots: "claude[bot],github-actions[bot]"
           show_full_output: "false"
