@@ -1,0 +1,55 @@
+# Example configuration with MADE-UP data.
+#
+# Your real configuration goes in a GitHub secret named DIGEST_CONFIG
+# (Settings -> Secrets and variables -> Actions). Paste the whole YAML there.
+# It is never committed to the repository.
+
+recipient: parent@example.com      # where the digest is sent (also the Gmail account being read)
+timezone: America/New_York
+calendar_id: primary
+lookahead_days: 21                 # calendar events are added for this many days ahead
+
+children:
+  - name: Maya
+    aliases: [Maya Rivera]
+    school: Oakwood Elementary School
+    grade: "3rd grade"
+    group: "Room 12"               # optional: homeroom, house or team; items for other groups are skipped
+  - name: Leo
+    aliases: [Leonardo Rivera]
+    school: Lakeview Middle School
+    grade: "7th grade"
+    group: "Team Blue"
+
+gmail:
+  # Mail from these domains or addresses is always read.
+  senders:
+    - example-district.org
+    - pta.example.org
+    - classroom.google.com
+  # Mail mentioning any of these words is also read.
+  keywords:
+    - Oakwood
+    - Lakeview
+    - PTA
+    - field trip
+    - permission slip
+    - early dismissal
+    - picture day
+  # Newsletters, flyers and other attachments are opened and read.
+  recent_days: 8                   # read everything from this window in full
+  older_days: 30                   # also skim bodies back this far for upcoming events
+
+links:
+  # Links in school emails to these domains are opened in a headless browser.
+  follow_domains:
+    - schoolmessenger.com
+    - example-district.org
+    - sway.cloud.microsoft
+    - sway.office.com
+    - docs.google.com
+    - drive.google.com
+    - smore.com
+    - canva.com
+  max_per_email: 5
+  max_total: 25

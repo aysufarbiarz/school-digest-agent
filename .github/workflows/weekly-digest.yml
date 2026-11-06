@@ -1,0 +1,84 @@
+name: Weekly school digest
+
+on:
+  schedule:
+    # Sundays at 15:41 UTC: 10:41 AM Eastern in winter, 11:41 AM in summer.
+    # GitHub can start scheduled runs a few minutes late.
+    - cron: "41 15 * * 0"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Test run: email the digest with a [Test run] subject and add nothing to the calendar"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write   # to commit the evaluation log
+  id-token: write   # used by the Claude action
+
+concurrency:
+  group: weekly-digest
+  cancel-in-progress: false
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+      DIGEST_CONFIG: ${{ secrets.DIGEST_CONFIG }}
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: |
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+
+      # 1. Gmail -> work/ (emails, attachments, linked pages). Prints counts only.
+      - name: Gather school email
+        run: python -m digest.gather
+
+      # 2. Claude reads work/ and writes work/extracted.json.
+      #    Uses your Claude subscription. It can only read and write files: no shell, no web.
+      #    Its conversation is not printed to the (public) log.
+      - name: Extract events with Claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          allowed_bots: "claude[bot],github-actions[bot]"
+          show_full_output: "false"
+          display_report: "false"
+          prompt: "Follow the instructions in prompts/extract.md exactly."
+          claude_args: |
+            --model sonnet
+            --max-turns 80
+            --allowedTools "Read,Write,Glob,Grep"
+
+      # 3. Check the output, add calendar events, email the digest.
+      - name: Verify, update calendar, send digest
+        run: python -m digest.send
+
+      # 4. Keep the aggregate evaluation log (counts only, no personal data).
+      #    This commit also keeps the repo active, so GitHub doesn't pause the schedule.
+      - name: Commit evaluation log
+        if: ${{ env.DRY_RUN != 'true' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add evals/runs.csv
+          git diff --cached --quiet || git commit -m "Evaluation log: run of $(date -u +%Y-%m-%d)"
+          git push
+
+      - name: Remove working files
+        if: always()
+        run: rm -rf work

@@ -1,0 +1,12 @@
+# Everything a run produces stays on the runner and is never committed.
+work/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Credentials and personal config: these live in GitHub secrets, never in the repo.
+config.yaml
+config.local.yaml
+client_secret*.json
+token*.json
+.env
